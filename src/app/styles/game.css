@@ -9,6 +9,96 @@
   font-family: var(--pixel-font);
 }
 
+@media (max-width: 768px) {
+  .game-header {
+    top: 1rem;
+    padding: 1rem;
+  }
+
+  .header-stats {
+    gap: 1.5rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .stat-group {
+    gap: 1.5rem;
+  }
+
+  .stat .value {
+    font-size: 1.2rem;
+  }
+
+  .stat .label {
+    font-size: 0.7rem;
+  }
+
+  .power-icon {
+    width: 70px;
+    height: 70px;
+  }
+
+  .power-symbol {
+    font-size: 1.5rem;
+  }
+
+  .power-cost {
+    font-size: 0.7rem;
+  }
+
+  .power-level {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-header {
+    top: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .header-stats {
+    gap: 1rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .stat-group {
+    gap: 1rem;
+  }
+
+  .stat .value {
+    font-size: 1rem;
+  }
+
+  .stat .label {
+    font-size: 0.6rem;
+  }
+
+  .power-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .power-symbol {
+    font-size: 1.2rem;
+  }
+
+  .power-cost {
+    font-size: 0.6rem;
+  }
+
+  .power-level {
+    font-size: 0.6rem;
+  }
+
+  .game-ui-container {
+    bottom: 1rem;
+  }
+
+  .powers-grid {
+    gap: 0.3rem;
+  }
+}
+
 .game-ui-container {
   position: fixed;
   bottom: 2rem;
@@ -18,43 +108,47 @@
   color: white;
   z-index: 100;
   background: none;
+  width: 50%;
+  max-width: 800px;
 }
 
 .powers-grid {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 1rem;
+  padding: 1.2rem;
   margin: 0 auto;
   position: relative;
+  max-width: 100%;
 }
 
 .powers-grid::before {
   content: '';
   position: absolute;
-  top: -1px;
-  left: -1px;
-  right: -1px;
-  bottom: -1px;
-  background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.6));
   border-radius: 16px;
   z-index: -1;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
 }
 
 .power-icon {
   position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.8);
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.6);
   border: 2px solid rgba(255, 215, 0, 0.3);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   cursor: pointer;
   transition: all 0.2s ease;
-  padding: 0.5rem;
+  padding: 0.8rem 0.6rem;
   box-shadow: 
     0 0 10px rgba(0, 0, 0, 0.5),
     inset 0 0 15px rgba(0, 0, 0, 0.5);
@@ -64,55 +158,40 @@
   transform: translateY(-2px);
   border-color: rgba(255, 215, 0, 0.6);
   box-shadow: 
-    0 0 15px rgba(0, 0, 0, 0.6),
-    inset 0 0 15px rgba(0, 0, 0, 0.5);
+    0 0 15px rgba(var(--upgrade-color), 0.3),
+    inset 0 0 20px rgba(var(--upgrade-color), 0.1);
 }
 
 .power-icon.disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
   filter: grayscale(0.5);
 }
 
 .power-symbol {
-  font-size: 2rem;
-  color: var(--upgrade-color, #ffffff);
-  text-shadow: 0 0 10px var(--upgrade-color, rgba(255, 255, 255, 0.5));
-  margin-bottom: 0.5rem;
+  font-size: 1.8rem;
+  margin-bottom: 0.2rem;
 }
 
 .power-level {
-  position: absolute;
-  bottom: -8px;
-  left: 0;
-  right: 0;
-  text-align: center;
   font-size: 0.7rem;
-  color: #ffffff;
-  background: rgba(0, 0, 0, 0.9);
-  padding: 0.2rem;
-  border-radius: 0 0 6px 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.2rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .power-cost {
-  position: absolute;
-  top: -10px;
-  left: -10px;
-  right: -10px;
-  background: rgba(0, 0, 0, 0.9);
-  color: #fcd34d;
-  font-size: 0.8rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  border: 2px solid #fcd34d;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.2rem;
-  z-index: 3;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: #fcd34d;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.3rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 215, 0, 0.2);
 }
 
 .cost-icon {
@@ -204,48 +283,171 @@
 /* Power Announcement */
 .power-announcement {
   position: fixed;
-  top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  pointer-events: none;
+  bottom: 16rem;
+  transform: translate(-50%, 0);
   background: rgba(0, 0, 0, 0.9);
-  padding: 1.5rem 2rem;
-  border-radius: 12px;
-  border: 2px solid var(--upgrade-color, rgba(255, 255, 255, 0.3));
-  box-shadow: 
-    0 0 30px rgba(0, 0, 0, 0.5),
-    0 0 15px var(--upgrade-color, rgba(255, 255, 255, 0.1));
   backdrop-filter: blur(10px);
-  min-width: 300px;
+  padding: 1.2rem 2rem;
+  border-radius: 16px;
+  color: white;
   text-align: center;
+  z-index: 2000;
+  min-width: 300px;
+  border: 2px solid var(--upgrade-color);
+  box-shadow: 
+    0 0 30px var(--upgrade-color),
+    inset 0 0 20px var(--upgrade-color);
+  pointer-events: none;
 }
 
 .announcement-icon {
   font-size: 3rem;
-  color: var(--upgrade-color, #ffffff);
-  text-shadow: 
-    0 0 20px var(--upgrade-color, rgba(255, 255, 255, 0.5)),
-    0 0 40px var(--upgrade-color, rgba(255, 255, 255, 0.3));
   margin-bottom: 0.5rem;
+  position: relative;
+  color: var(--upgrade-color);
+  text-shadow: 0 0 20px var(--upgrade-color);
 }
 
 .announcement-title {
   font-size: 1.2rem;
-  color: #ffffff;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   margin-bottom: 0.5rem;
+  color: var(--upgrade-color);
+  text-transform: capitalize;
+  text-shadow: 0 0 10px var(--upgrade-color);
 }
 
 .announcement-description {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  color: #94a3b8;
   line-height: 1.4;
-  max-width: 400px;
+}
+
+/* Particle effects */
+@keyframes particle-animation {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x-offset), var(--y-offset)) scale(0) rotate(var(--spin-deg));
+  }
+}
+
+.power-particles {
+  position: absolute;
+  inset: -100px;
+  pointer-events: none;
+  z-index: 10;
+  overflow: visible;
+}
+
+.power-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: var(--upgrade-color);
+  box-shadow: 0 0 10px var(--upgrade-color);
+  animation: particle-animation 0.6s ease-out forwards;
+  animation-delay: var(--delay);
+  will-change: transform, opacity;
+}
+
+/* Power-specific particle styles */
+.power-particles.clickPower .power-particle {
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  width: 16px;
+  height: 16px;
+}
+
+.power-particles.autoClicker .power-particle {
+  border-radius: 2px;
+  width: 12px;
+  height: 12px;
+}
+
+.power-particles.multiplier .power-particle {
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  width: 18px;
+  height: 18px;
+}
+
+.power-particles.comboMaster .power-particle {
+  width: 16px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.power-particles.criticalClick .power-particle {
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  width: 16px;
+  height: 16px;
+}
+
+.power-particles.colorMastery .power-particle {
+  border-radius: 0;
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+}
+
+/* Floating animation for the announcement */
+@keyframes float {
+  0%, 100% {
+    transform: translate(-50%, 0);
+  }
+  50% {
+    transform: translate(-50%, -10px);
+  }
+}
+
+.power-announcement {
+  animation: float 2s ease-in-out infinite;
+  transition: all 0.2s ease-out;
+}
+
+@media (max-width: 768px) {
+  .power-announcement {
+    padding: 1rem 1.5rem;
+    bottom: 14rem;
+    min-width: 280px;
+  }
+
+  .announcement-icon {
+    font-size: 2.5rem;
+  }
+
+  .announcement-title {
+    font-size: 1rem;
+  }
+
+  .announcement-description {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .power-announcement {
+    padding: 0.8rem 1.2rem;
+    bottom: 12rem;
+    width: 90%;
+    min-width: 0;
+  }
+
+  .announcement-icon {
+    font-size: 2rem;
+  }
+
+  .announcement-title {
+    font-size: 0.9rem;
+  }
+
+  .announcement-description {
+    font-size: 0.65rem;
+  }
 }
 
 /* Floating Numbers */
@@ -325,23 +527,30 @@
   }
 
   .powers-grid {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+    padding: 0.8rem;
   }
 
   .power-icon {
-    width: 70px;
-    height: 70px;
+    padding: 0.6rem 0.4rem;
+    border-radius: 10px;
+    min-height: 90px;
   }
 
   .power-symbol {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
+    margin-bottom: 0.1rem;
   }
 
   .power-cost {
     font-size: 0.7rem;
-    padding: 0.15rem 0.3rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .power-level {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.4rem;
   }
 
   .power-announcement {
@@ -373,24 +582,41 @@
   }
 
   .powers-grid {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+    padding: 0.6rem;
   }
 
   .power-icon {
-    width: 65px;
-    height: 65px;
+    padding: 0.5rem 0.3rem;
+    border-radius: 8px;
+    min-height: 80px;
   }
 
   .power-symbol {
-    font-size: 1.6rem;
+    font-size: 1.4rem;
   }
 
   .power-announcement {
     min-width: 260px;
     padding: 1rem 1.5rem;
     max-width: 90vw;
+  }
+
+  .power-cost {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.3rem;
+    gap: 0.2rem;
+  }
+
+  .power-level {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.3rem;
+  }
+
+  .game-ui-container {
+    width: 95%;
+    bottom: 0.5rem;
   }
 }
 

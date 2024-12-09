@@ -521,9 +521,11 @@ export default function Home() {
   const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     
-    // Get screen coordinates from the native event
+    // Get screen coordinates from the native event and adjust for blob scale
     const screenX = e.nativeEvent.clientX;
     const screenY = e.nativeEvent.clientY;
+    const isMobile = window.innerWidth <= 768;
+    const scale = isMobile ? (window.innerWidth <= 480 ? 0.5 : 0.7) : 1;
     
     // Convert Three.js coordinates to screen coordinates
     const x = (e.point.x + 1) * 50; // Convert from [-1,1] to [0,100]

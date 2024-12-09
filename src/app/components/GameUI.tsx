@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { GameState, UPGRADES } from '../types';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 
@@ -27,18 +27,53 @@ function PowerAnnouncementDisplay({ announcement, onComplete }: {
   const symbol = POWER_SYMBOLS[announcement.type];
   const name = announcement.type.replace(/([A-Z])/g, ' $1').trim();
 
+  // Ensure cleanup happens
   useEffect(() => {
-    const timer = setTimeout(onComplete, 3000);
-    return () => clearTimeout(timer);
+    const timer = setTimeout(onComplete, 2000);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [announcement.type, announcement.level, onComplete]);
+
+  // Create particles
+  const particles = useMemo(() => {
+    return Array.from({ length: 24 }, (_, i) => {
+      const angle = (i / 24) * Math.PI * 2;
+      const distance = 80;
+      const xOffset = Math.cos(angle) * distance;
+      const yOffset = Math.sin(angle) * distance;
+      const spinDeg = Math.random() * 360;
+      const delay = (i / 24) * 0.2; // Sequential delay based on position
+      const duration = 0.8;
+      
+      return (
+        <div
+          key={i}
+          className={`power-particle`}
+          style={{
+            '--x-offset': `${xOffset}px`,
+            '--y-offset': `${yOffset}px`,
+            '--spin-deg': `${spinDeg}deg`,
+            '--delay': `${delay}s`,
+            '--duration': `${duration}s`
+          } as React.CSSProperties}
+        />
+      );
+    });
+  }, []);
 
   return (
     <motion.div 
       className="power-announcement"
-      initial={{ y: 50, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: -50, opacity: 0 }}
-      transition={{ type: "spring", damping: 20, stiffness: 300 }}
+      initial={{ y: 50, opacity: 0, scale: 0.8 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      exit={{ y: -50, opacity: 0, scale: 0.8 }}
+      transition={{ 
+        type: "spring", 
+        damping: 20, 
+        stiffness: 300,
+        duration: 0.3 
+      }}
       style={{
         '--upgrade-color': info.color
       } as React.CSSProperties}
@@ -52,12 +87,25 @@ function PowerAnnouncementDisplay({ announcement, onComplete }: {
         transition={{ duration: 0.5 }}
       >
         {symbol}
+        <div className={`power-particles ${announcement.type}`}>
+          {particles}
+        </div>
       </motion.div>
-      <motion.div className="announcement-title">
+      <motion.div 
+        className="announcement-title"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1, duration: 0.2 }}
+      >
         {name}
       </motion.div>
-      <motion.div className="announcement-description">
-        Level {announcement.level} - {info.description}
+      <motion.div 
+        className="announcement-description"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.2 }}
+      >
+        LVL {announcement.level} - {info.description}
       </motion.div>
     </motion.div>
   );
@@ -146,7 +194,7 @@ function PowersGrid({ gameState, buyUpgrade, calculateUpgradePrice, onPowerSelec
               {cost.toLocaleString()}
             </div>
             <div className="power-level">
-              Level {currentLevel}
+              LVL {currentLevel}
             </div>
           </motion.button>
         );
@@ -157,11 +205,31 @@ function PowersGrid({ gameState, buyUpgrade, calculateUpgradePrice, onPowerSelec
 
 export default function GameUI({ gameState, buyUpgrade, calculateUpgradePrice }: GameUIProps) {
   const [announcement, setAnnouncement] = useState<PowerAnnouncement | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout>();
   const isMobile = useMediaQuery('(max-width: 768px)');
 
+  // Cleanup all timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const handlePowerSelected = (type: keyof typeof UPGRADES, level: number) => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Immediately show new announcement
     setAnnouncement({ type, level });
   };
+
+  const handleAnimationComplete = useCallback(() => {
+    setAnnouncement(null);
+  }, []);
 
   return (
     <>
@@ -184,8 +252,9 @@ export default function GameUI({ gameState, buyUpgrade, calculateUpgradePrice }:
       <AnimatePresence>
         {announcement && (
           <PowerAnnouncementDisplay 
+            key={`${announcement.type}-${announcement.level}`}
             announcement={announcement}
-            onComplete={() => setAnnouncement(null)}
+            onComplete={handleAnimationComplete}
           />
         )}
       </AnimatePresence>

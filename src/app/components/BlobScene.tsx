@@ -114,7 +114,7 @@ function Stars() {
   const sizes = useMemo(() => {
     const temp = new Float32Array(positions.length / 3);
     for (let i = 0; i < temp.length; i++) {
-      temp[i] = Math.random() * 1.5 + 0.5;
+      temp[i] = Math.random() * 0.5 + 0.2;
     }
     return temp;
   }, [positions]);
@@ -127,7 +127,7 @@ function Stars() {
     return new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        size: { value: 3.0 },
+        size: { value: 2.0 },
       },
       vertexShader: `
         attribute float size;
@@ -138,7 +138,7 @@ function Stars() {
           vPosition = position;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           float twinkle = sin(time * 0.5 + position.x * 0.5) * 0.5 + 0.5;
-          gl_PointSize = size * (300.0 / length(mvPosition.xyz)) * (0.8 + twinkle * 0.4);
+          gl_PointSize = size * (200.0 / length(mvPosition.xyz)) * (0.8 + twinkle * 0.4);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -159,7 +159,7 @@ function Stars() {
             float angle = float(i) * 3.14159 / 2.0;
             vec2 dir = vec2(cos(angle), sin(angle));
             float ray = smoothstep(0.3, 0.0, abs(dot(normalize(center), dir) * length(center)));
-            rays += ray * 0.3;
+            rays += ray * 0.2;
           }
           
           // Combine core and rays
@@ -167,7 +167,7 @@ function Stars() {
           float alpha = strength + rays;
           alpha = smoothstep(0.0, 1.0, alpha);
           
-          gl_FragColor = vec4(color, alpha * 0.8);
+          gl_FragColor = vec4(color, alpha * 0.6);
         }
       `,
       transparent: true,
@@ -230,7 +230,9 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
   const mesh = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const materialRef = useRef<THREE.MeshDistortMaterial>(null);
-  const distortionRef = useRef(0.4); // Track current distortion value
+  const distortionRef = useRef(0.4);
+  const isMobile = window.innerWidth <= 768;
+  const scale = isMobile ? (window.innerWidth <= 480 ? 0.5 : 0.7) : 1;
   
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     whaleSound.playWhaleCall(level);
@@ -244,7 +246,7 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
     mesh.current.position.y = Math.sin(time * 0.5) * 0.2;
     mesh.current.position.x = Math.sin(time * 0.3) * 0.1;
     
-    const baseScale = isClicking ? 1.9 : 2;
+    const baseScale = (isClicking ? 1.9 : 2) * scale;
     const breathe = 
       Math.sin(time * 2) * 0.04 + 
       Math.sin(time * 1.3) * 0.02 + 
@@ -294,6 +296,9 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
 }
 
 export default function BlobScene({ color, isClicking, level, onClick }: BlobProps) {
+  const isMobile = window.innerWidth <= 768;
+  const cameraZ = isMobile ? (window.innerWidth <= 480 ? 7 : 6) : 5;
+
   return (
     <div style={{ 
       position: 'fixed',
@@ -304,9 +309,8 @@ export default function BlobScene({ color, isClicking, level, onClick }: BlobPro
       background: '#000000'
     }}>
       <Canvas
-        camera={{ position: [0, 0, 5], fov: 75 }}
+        camera={{ position: [0, 0, cameraZ], fov: 75 }}
         style={{ width: '100%', height: '100%' }}
-        gl={{ antialias: true }}
       >
         <color attach="background" args={['#000000']} />
         
