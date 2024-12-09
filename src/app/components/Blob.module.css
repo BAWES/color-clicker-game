@@ -1,0 +1,75 @@
+.blob {
+  position: fixed;
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(
+    135deg,
+    #ff00ff,              /* Pure magenta */
+    #00ffff,              /* Pure cyan */
+    #ffff00               /* Pure yellow */
+  );
+  border-radius: 50%;
+  filter: blur(15px);
+  animation: pulse 4s infinite, colorShift 8s infinite, rotate 20s linear infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.320, 1);
+  box-shadow: 
+    0 0 70px rgba(255, 0, 255, 0.8),
+    0 0 120px rgba(0, 255, 255, 0.6),
+    0 0 160px rgba(255, 255, 0, 0.4);
+  z-index: 1000;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes pulse {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes colorShift {
+  0% {
+    background: linear-gradient(135deg, #ff00ff, #00ffff, #ffff00);
+    filter: hue-rotate(0deg) saturate(150%);
+  }
+  50% {
+    background: linear-gradient(135deg, #ff0080, #00ff00, #8000ff);
+    filter: hue-rotate(180deg) saturate(200%);
+  }
+  100% {
+    background: linear-gradient(135deg, #ff00ff, #00ffff, #ffff00);
+    filter: hue-rotate(360deg) saturate(150%);
+  }
+}
+
+@keyframes rotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Enhanced glow effect */
+.blob::before {
+  content: '';
+  position: absolute;
+  inset: -30px;
+  background: inherit;
+  border-radius: 50%;
+  filter: blur(30px);
+  opacity: 0.9;
+  animation: pulse 4s infinite reverse;
+}
+
+/* Additional outer glow */
+.blob::after {
+  content: '';
+  position: absolute;
+  inset: -50px;
+  background: inherit;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.4;
+  animation: pulse 4s infinite;
+} 

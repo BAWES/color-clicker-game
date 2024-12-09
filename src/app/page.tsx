@@ -6,6 +6,7 @@ import GameUI from './components/GameUI';
 import './styles/game.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThreeEvent } from '@react-three/fiber';
+import { whaleSound } from '@/utils/sounds';
 
 interface HSL {
   h: number;
@@ -423,8 +424,11 @@ export default function Home() {
     
     if (x > y) {
       newHSL.h = (newHSL.h + Math.floor(Math.random() * 60) + 30) % 360;
+      newHSL.s = 100; // Maximum saturation
+      newHSL.l = 60;  // Brighter luminance
     } else {
-      newHSL.s = Math.max(30, Math.min(100, newHSL.s + (Math.random() > 0.5 ? 20 : -20)));
+      newHSL.s = 100; // Keep saturation at maximum
+      newHSL.l = Math.max(50, Math.min(70, newHSL.l + (Math.random() > 0.5 ? 10 : -10)));
     }
 
     setCurrentHSL(newHSL);
@@ -579,9 +583,9 @@ export default function Home() {
 
       // Play appropriate sound
       if (hitMilestone) {
-        playMilestoneSound();
+        whaleSound.playMilestone();
       } else {
-        playRewardSound();
+        whaleSound.playWhaleClick();
       }
 
       return {
