@@ -143,6 +143,7 @@ export default function Home() {
   const [currentHSL, setCurrentHSL] = useState<HSL>({ h: 0, s: 100, l: 50 });
   const [glowKey, setGlowKey] = useState(0);
   const [isClicking, setIsClicking] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     points: 0,
     pointsPerClick: 1,
@@ -175,6 +176,22 @@ export default function Home() {
   const rotationRef = useRef(0);
   const clickTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const floatingNumberId = useRef(0);
+
+  // Load saved game after hydration
+  useEffect(() => {
+    const savedState = storage.loadGame();
+    if (savedState) {
+      setGameState(savedState);
+    }
+    setIsHydrated(true);
+  }, []);
+
+  // Save game when state changes, but only after hydration
+  useEffect(() => {
+    if (isHydrated) {
+      storage.saveGame(gameState);
+    }
+  }, [gameState, isHydrated]);
 
   // Handle combo system
   useEffect(() => {
@@ -504,9 +521,11 @@ export default function Home() {
   const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     
-    // Get screen coordinates from the native event
+    // Get screen coordinates from the native event and adjust for blob scale
     const screenX = e.nativeEvent.clientX;
     const screenY = e.nativeEvent.clientY;
+    const isMobile = window.innerWidth <= 768;
+    const scale = isMobile ? (window.innerWidth <= 480 ? 0.5 : 0.7) : 1;
     
     // Convert Three.js coordinates to screen coordinates
     const x = (e.point.x + 1) * 50; // Convert from [-1,1] to [0,100]
@@ -533,11 +552,7 @@ export default function Home() {
       const newAchievements = {
         ...prev.achievements,
         totalClicks: prev.achievements.totalClicks + 1,
-        colorsUnlocked: new Set(
-          Array.isArray(prev.achievements.colorsUnlocked)
-            ? [...prev.achievements.colorsUnlocked, newColor]
-            : [...Array.from(prev.achievements.colorsUnlocked), newColor]
-        )
+        colorsUnlocked: new Set(Array.from(prev.achievements.colorsUnlocked).concat([newColor]))
       };
 
       // Calculate combo
@@ -617,19 +632,6 @@ export default function Home() {
   const handleAnimationComplete = useCallback((id: number) => {
     setFloatingNumbers(prev => prev.filter(n => n.id !== id));
   }, []);
-
-  // Load saved game on mount
-  useEffect(() => {
-    const savedState = storage.loadGame();
-    if (savedState) {
-      setGameState(savedState);
-    }
-  }, []);
-
-  // Save game when state changes
-  useEffect(() => {
-    storage.saveGame(gameState);
-  }, [gameState]);
 
   // Initialize audio on first interaction
   useEffect(() => {
