@@ -69,12 +69,17 @@ function BackgroundParticles({ count = 100, color }: { count?: number; color: st
       
       matrix.setPosition(x, y, z);
       matrix.scale(new THREE.Vector3(scale, scale, scale));
-      mesh.current.setMatrixAt(i, matrix);
-      mesh.current.setColorAt(i, particle.color);
+      
+      if (mesh.current) {
+        mesh.current.setMatrixAt(i, matrix);
+        mesh.current.setColorAt(i, particle.color);
+      }
     });
 
-    mesh.current.instanceMatrix.needsUpdate = true;
-    mesh.current.instanceColor!.needsUpdate = true;
+    if (mesh.current) {
+      mesh.current.instanceMatrix.needsUpdate = true;
+      mesh.current.instanceColor!.needsUpdate = true;
+    }
   });
 
   return (

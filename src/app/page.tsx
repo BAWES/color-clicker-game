@@ -532,7 +532,11 @@ export default function Home() {
       const newAchievements = {
         ...prev.achievements,
         totalClicks: prev.achievements.totalClicks + 1,
-        colorsUnlocked: new Set([...prev.achievements.colorsUnlocked, newColor])
+        colorsUnlocked: new Set(
+          Array.isArray(prev.achievements.colorsUnlocked)
+            ? [...prev.achievements.colorsUnlocked, newColor]
+            : [...Array.from(prev.achievements.colorsUnlocked), newColor]
+        )
       };
 
       // Calculate combo

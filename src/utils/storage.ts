@@ -8,12 +8,20 @@ const CRYPTO_KEY = 'blob-game-secret-123';
 export const storage = {
   saveGame(state: GameState) {
     try {
-      // Create a checksum and encrypt the data
-      const stateString = JSON.stringify(state);
+      // Convert Set to Array before saving
+      const serializedState = {
+        ...state,
+        achievements: {
+          ...state.achievements,
+          colorsUnlocked: Array.from(state.achievements.colorsUnlocked)
+        }
+      };
+
+      const stateString = JSON.stringify(serializedState);
       const checksum = CryptoJS.SHA256(stateString).toString();
       
       const saveData = {
-        state,
+        state: serializedState,
         checksum,
         timestamp: Date.now()
       };
@@ -34,11 +42,18 @@ export const storage = {
       const encrypted = localStorage.getItem(STORAGE_KEY);
       if (!encrypted) return null;
       
-      // Decrypt and verify the data
       const decrypted = CryptoJS.AES.decrypt(encrypted, CRYPTO_KEY).toString(CryptoJS.enc.Utf8);
       const saveData = JSON.parse(decrypted);
       
-      // Verify checksum to prevent tampering
+      // Convert Array back to Set after loading
+      const state = {
+        ...saveData.state,
+        achievements: {
+          ...saveData.state.achievements,
+          colorsUnlocked: new Set(saveData.state.achievements.colorsUnlocked)
+        }
+      };
+      
       const stateString = JSON.stringify(saveData.state);
       const checksum = CryptoJS.SHA256(stateString).toString();
       
@@ -47,7 +62,7 @@ export const storage = {
         return null;
       }
       
-      return saveData.state;
+      return state;
     } catch (error) {
       console.error('Failed to load game:', error);
       return null;
