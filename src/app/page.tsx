@@ -632,33 +632,62 @@ export default function Home() {
 
   // Initialize audio on first interaction
   useEffect(() => {
-    const handleFirstInteraction = async () => {
+    let audioInitialized = false;
+    let silentContext: AudioContext | null = null;
+
+    const initAudioContext = async () => {
+      if (audioInitialized) return;
+      
       try {
+        // Create and start silent audio context
+        silentContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = silentContext.createOscillator();
+        const gainNode = silentContext.createGain();
+        gainNode.gain.value = 0;
+        oscillator.connect(gainNode);
+        gainNode.connect(silentContext.destination);
+        oscillator.start();
+        oscillator.stop(0.001);
+
+        // Initialize our game audio
         await initializeAudio();
-        // Try playing a silent sound to unlock audio
-        const silentContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const buffer = silentContext.createBuffer(1, 1, 22050);
-        const source = silentContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(silentContext.destination);
-        source.start(0);
-        silentContext.close();
         
-        // Remove listeners after first interaction
-        document.removeEventListener('click', handleFirstInteraction);
-        document.removeEventListener('touchstart', handleFirstInteraction);
+        audioInitialized = true;
       } catch (error) {
         console.error('Audio initialization failed:', error);
       }
     };
 
-    // Add both touch and click listeners for iOS Chrome
-    document.addEventListener('click', handleFirstInteraction, { once: true });
-    document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+    const handleInteraction = async () => {
+      await initAudioContext();
+    };
 
+    // Handle iOS audio unlock
+    const resumeAudioContext = async () => {
+      if (silentContext?.state === 'suspended') {
+        await silentContext.resume();
+      }
+      await initAudioContext();
+    };
+
+    // Add multiple event listeners for better iOS compatibility
+    const events = ['touchstart', 'touchend', 'click', 'keydown'];
+    events.forEach(event => {
+      document.addEventListener(event, handleInteraction, { once: true });
+    });
+
+    // Handle page visibility changes
+    document.addEventListener('visibilitychange', resumeAudioContext);
+
+    // Clean up
     return () => {
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('touchstart', handleFirstInteraction);
+      events.forEach(event => {
+        document.removeEventListener(event, handleInteraction);
+      });
+      document.removeEventListener('visibilitychange', resumeAudioContext);
+      if (silentContext) {
+        silentContext.close();
+      }
     };
   }, []);
 

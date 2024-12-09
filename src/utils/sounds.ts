@@ -3,68 +3,73 @@ class WhaleSound {
   private gainNode: GainNode | null = null;
   private currentScale: string[] = ['C3', 'E3', 'G3', 'C4'];
   private isInitialized = false;
-  private audioEnabled = false;
+  private isIOS = false;
 
-  private noteToFreq: { [key: string]: number } = {
-    'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
-    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88
-  };
-
-  private scales = [
-    ['C3', 'E3', 'G3'],
-    ['C3', 'E3', 'G3', 'B3'],
-    ['C3', 'D3', 'E3', 'G3', 'A3'],
-    ['C3', 'E3', 'G3', 'C4'],
-    ['C3', 'E3', 'G3', 'B3', 'D4']
-  ];
-
-  // Initialize audio context with user interaction
-  async initializeAudio() {
-    try {
-      if (!this.isInitialized) {
-        // Create context with iOS-compatible options
-        this.context = new (window.AudioContext || (window as any).webkitAudioContext)({
-          latencyHint: 'interactive',
-          sampleRate: 44100,
-        });
-        
-        // Resume context (needed for iOS)
-        if (this.context.state === 'suspended') {
-          await this.context.resume();
-        }
-
-        this.gainNode = this.context.createGain();
-        const compressor = this.context.createDynamicsCompressor();
-        
-        compressor.threshold.value = -24;
-        compressor.knee.value = 30;
-        compressor.ratio.value = 12;
-        compressor.attack.value = 0.003;
-        compressor.release.value = 0.25;
-        
-        this.gainNode.connect(compressor);
-        compressor.connect(this.context.destination);
-        this.gainNode.gain.value = 0.2;
-        
-        this.isInitialized = true;
-        this.audioEnabled = true;
-        
-        // Add iOS unloading handler
-        window.addEventListener('visibilitychange', () => {
-          if (document.hidden && this.context) {
-            this.context.suspend();
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Failed to initialize audio:', error);
-      this.audioEnabled = false;
+  constructor() {
+    if (typeof window !== 'undefined') {
+      // Check for iOS
+      this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     }
   }
 
+  async initializeAudio() {
+    if (this.isInitialized) return;
+
+    try {
+      // Use lower sample rate for iOS
+      const contextOptions = this.isIOS ? { sampleRate: 44100 } : undefined;
+      
+      this.context = new (window.AudioContext || (window as any).webkitAudioContext)(contextOptions);
+      
+      // For iOS, we need to resume the context immediately
+      if (this.isIOS && this.context.state === 'suspended') {
+        await this.context.resume();
+      }
+
+      this.gainNode = this.context.createGain();
+      const compressor = this.context.createDynamicsCompressor();
+      
+      // Gentler settings for iOS
+      if (this.isIOS) {
+        compressor.threshold.value = -18;
+        compressor.knee.value = 35;
+        compressor.ratio.value = 8;
+        this.gainNode.gain.value = 0.15; // Lower volume for iOS
+      } else {
+        compressor.threshold.value = -24;
+        compressor.knee.value = 30;
+        compressor.ratio.value = 12;
+        this.gainNode.gain.value = 0.2;
+      }
+      
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.25;
+      
+      this.gainNode.connect(compressor);
+      compressor.connect(this.context.destination);
+      
+      this.isInitialized = true;
+
+      // Add resume handler for iOS
+      if (this.isIOS) {
+        document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      }
+    } catch (error) {
+      console.error('Failed to initialize audio:', error);
+      this.isInitialized = false;
+    }
+  }
+
+  private handleVisibilityChange = async () => {
+    if (!document.hidden && this.context?.state === 'suspended') {
+      await this.context.resume();
+    }
+  };
+
   // Method to check if audio is ready
   isAudioReady(): boolean {
-    return this.audioEnabled && this.context?.state === 'running';
+    return this.isInitialized && this.context?.state === 'running';
   }
 
   // Method to handle user interaction
@@ -172,6 +177,12 @@ class WhaleSound {
         this.playWhaleCall(level);
       }, i * 200);
     });
+  }
+
+  cleanup() {
+    if (this.isIOS) {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    }
   }
 }
 
