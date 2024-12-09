@@ -7,6 +7,7 @@ import './styles/game.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThreeEvent } from '@react-three/fiber';
 import { whaleSound } from '@/utils/sounds';
+import { storage } from '@/utils/storage';
 
 interface HSL {
   h: number;
@@ -530,7 +531,7 @@ export default function Home() {
       const newAchievements = {
         ...prev.achievements,
         totalClicks: prev.achievements.totalClicks + 1,
-        colorsUnlocked: prev.achievements.colorsUnlocked.add(newColor),
+        colorsUnlocked: new Set([...prev.achievements.colorsUnlocked, newColor])
       };
 
       // Calculate combo
@@ -583,9 +584,9 @@ export default function Home() {
 
       // Play appropriate sound
       if (hitMilestone) {
-        whaleSound.playMilestone();
+        whaleSound.playMilestone(currentLevel);
       } else {
-        whaleSound.playWhaleClick();
+        whaleSound.playWhaleCall(currentLevel);
       }
 
       return {
@@ -615,12 +616,26 @@ export default function Home() {
     return () => clearInterval(cleanup);
   }, []);
 
+  // Load saved game on mount
+  useEffect(() => {
+    const savedState = storage.loadGame();
+    if (savedState) {
+      setGameState(savedState);
+    }
+  }, []);
+
+  // Save game when state changes
+  useEffect(() => {
+    storage.saveGame(gameState);
+  }, [gameState]);
+
   return (
     <main className="fixed inset-0 w-full h-full overflow-hidden">
       <div className="absolute inset-0">
         <BlobScene
           color={hslToHex(currentHSL)}
           isClicking={isClicking}
+          level={gameState.level}
           onClick={handleClick}
         />
       </div>
@@ -646,23 +661,30 @@ export default function Home() {
             initial={{ 
               opacity: 0,
               scale: 0.5,
-              y: 0
+              y: 0,
+              rotate: number.isCritical ? -10 : 0
             }}
             animate={{ 
               opacity: 1,
               scale: 1,
-              y: -80
+              y: -100,
+              rotate: 0
             }}
             exit={{ 
               opacity: 0,
-              y: -120
+              y: -150,
+              scale: 0.8
             }}
             transition={{ 
-              duration: 0.4,
-              ease: [0.23, 1, 0.32, 1]
+              duration: 0.6,
+              ease: [0.23, 1, 0.32, 1],
+              scale: {
+                duration: 0.4,
+                ease: [0.175, 0.885, 0.32, 1.275]
+              }
             }}
           >
-            +{Math.floor(number.value).toLocaleString()}
+            {Math.floor(number.value).toLocaleString()}
           </motion.div>
         ))}
       </AnimatePresence>
