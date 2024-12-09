@@ -1,5 +1,5 @@
 import { Canvas, useFrame, ThreeEvent, useThree } from '@react-three/fiber';
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { MeshDistortMaterial, Sphere } from '@react-three/drei';
@@ -231,8 +231,17 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
   const [hovered, setHovered] = useState(false);
   const materialRef = useRef<THREE.MeshDistortMaterial>(null);
   const distortionRef = useRef(0.4);
-  const isMobile = window.innerWidth <= 768;
-  const scale = isMobile ? (window.innerWidth <= 480 ? 0.5 : 0.7) : 1;
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const scale = useMemo(() => {
+    if (!isMounted) return 1;
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    return width <= 480 ? 0.5 : width <= 768 ? 0.7 : 1;
+  }, [isMounted]);
   
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     whaleSound.playWhaleCall(level);
@@ -271,17 +280,21 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
       onClick={handleClick}
       onPointerOver={(e) => {
         setHovered(true);
-        document.body.style.cursor = 'pointer';
+        if (typeof document !== 'undefined') {
+          document.body.style.cursor = 'pointer';
+        }
       }}
       onPointerOut={(e) => {
         setHovered(false);
-        document.body.style.cursor = 'auto';
+        if (typeof document !== 'undefined') {
+          document.body.style.cursor = 'auto';
+        }
       }}
     >
       <MeshDistortMaterial
         ref={materialRef}
         color={color}
-        distort={0.4} // Initial distortion value
+        distort={0.4}
         speed={isClicking ? 5 : 2}
         roughness={0.1}
         metalness={0.3}
@@ -296,8 +309,17 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
 }
 
 export default function BlobScene({ color, isClicking, level, onClick }: BlobProps) {
-  const isMobile = window.innerWidth <= 768;
-  const cameraZ = isMobile ? (window.innerWidth <= 480 ? 7 : 6) : 5;
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const cameraZ = useMemo(() => {
+    if (!isMounted) return 5;
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    return width <= 480 ? 7 : width <= 768 ? 6 : 5;
+  }, [isMounted]);
 
   return (
     <div style={{ 

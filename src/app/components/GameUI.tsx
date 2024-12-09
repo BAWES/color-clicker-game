@@ -27,14 +27,6 @@ function PowerAnnouncementDisplay({ announcement, onComplete }: {
   const symbol = POWER_SYMBOLS[announcement.type];
   const name = announcement.type.replace(/([A-Z])/g, ' $1').trim();
 
-  // Ensure cleanup happens
-  useEffect(() => {
-    const timer = setTimeout(onComplete, 2000);
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [announcement.type, announcement.level, onComplete]);
-
   // Create particles
   const particles = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => {
@@ -43,7 +35,7 @@ function PowerAnnouncementDisplay({ announcement, onComplete }: {
       const xOffset = Math.cos(angle) * distance;
       const yOffset = Math.sin(angle) * distance;
       const spinDeg = Math.random() * 360;
-      const delay = (i / 24) * 0.2; // Sequential delay based on position
+      const delay = (i / 24) * 0.2;
       const duration = 0.8;
       
       return (
@@ -61,6 +53,13 @@ function PowerAnnouncementDisplay({ announcement, onComplete }: {
       );
     });
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 2000);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [announcement.type, announcement.level, onComplete]);
 
   return (
     <motion.div 
@@ -206,7 +205,11 @@ function PowersGrid({ gameState, buyUpgrade, calculateUpgradePrice, onPowerSelec
 export default function GameUI({ gameState, buyUpgrade, calculateUpgradePrice }: GameUIProps) {
   const [announcement, setAnnouncement] = useState<PowerAnnouncement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Cleanup all timeouts on unmount
   useEffect(() => {
@@ -230,6 +233,10 @@ export default function GameUI({ gameState, buyUpgrade, calculateUpgradePrice }:
   const handleAnimationComplete = useCallback(() => {
     setAnnouncement(null);
   }, []);
+
+  if (!isMounted) {
+    return null; // or a loading state
+  }
 
   return (
     <>
