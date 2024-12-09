@@ -3,7 +3,7 @@ class WhaleSound {
   private gainNode: GainNode | null = null;
   private currentScale: string[] = ['C3', 'E3', 'G3', 'C4'];
   private isInitialized = false;
-  private audioElement: HTMLAudioElement | null = null;
+  private isIOS = false;
 
   private noteToFreq: { [key: string]: number } = {
     'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
@@ -18,32 +18,30 @@ class WhaleSound {
     ['C3', 'E3', 'G3', 'B3', 'D4']  // Level 21+: Extended harmony
   ];
 
+  constructor() {
+    // Check if running on iOS
+    if (typeof window !== 'undefined') {
+      this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+  }
+
   async initializeAudio() {
+    if (this.isInitialized) return true;
+
     try {
-      // Create a short audio element to force audio session on iOS
-      this.audioElement = new Audio();
-      this.audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-      this.audioElement.loop = true;
-      this.audioElement.muted = true;
-      await this.audioElement.play();
+      // Create audio context with iOS-friendly settings
+      this.context = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: this.isIOS ? 44100 : 48000,
+        latencyHint: 'interactive'
+      });
 
-      // Create WebAudio context
-      this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
+      // Basic gain setup
       this.gainNode = this.context.createGain();
-      const compressor = this.context.createDynamicsCompressor();
-      
-      // Gentler compression settings
-      compressor.threshold.value = -24;
-      compressor.knee.value = 30;
-      compressor.ratio.value = 12;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-      
-      this.gainNode.connect(compressor);
-      compressor.connect(this.context.destination);
-      this.gainNode.gain.value = 0.2; // Reduced overall volume
+      this.gainNode.gain.value = this.isIOS ? 0.5 : 0.2; // Higher volume for iOS
+      this.gainNode.connect(this.context.destination);
 
+      // Resume context
       if (this.context.state === 'suspended') {
         await this.context.resume();
       }
@@ -51,7 +49,7 @@ class WhaleSound {
       this.isInitialized = true;
       return true;
     } catch (error) {
-      console.error('Audio initialization failed:', error);
+      console.error('Failed to initialize audio:', error);
       return false;
     }
   }
@@ -65,6 +63,11 @@ class WhaleSound {
     if (!this.context || !this.gainNode || !this.isInitialized) return;
 
     try {
+      // Resume context if needed (important for iOS)
+      if (this.context.state === 'suspended') {
+        await this.context.resume();
+      }
+
       this.updateScale(level);
       const note = this.currentScale[Math.floor(Math.random() * this.currentScale.length)];
       const frequency = this.noteToFreq[note];
@@ -72,98 +75,54 @@ class WhaleSound {
       // Create oscillators
       const mainOsc = this.context.createOscillator();
       const modulatorOsc = this.context.createOscillator();
-      const subOsc = this.context.createOscillator(); // Subtle sub-oscillator
-      
-      // Create gain nodes
       const mainGain = this.context.createGain();
-      const modulatorGain = this.context.createGain();
-      const subGain = this.context.createGain();
-      
-      // Create filter
-      const filter = this.context.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 2000;
-      filter.Q.value = 1;
 
-      // Connect everything
+      // Connect nodes
       mainOsc.connect(mainGain);
-      modulatorOsc.connect(modulatorGain);
-      subOsc.connect(subGain);
-      modulatorGain.connect(mainOsc.frequency);
-      mainGain.connect(filter);
-      subGain.connect(filter);
-      filter.connect(this.gainNode);
+      mainGain.connect(this.gainNode);
+
+      // Configure oscillators
+      mainOsc.type = 'sine';
+      modulatorOsc.type = 'sine';
 
       const now = this.context.currentTime;
       
-      // Main oscillator settings
-      mainOsc.type = 'sine';
-      mainOsc.frequency.setValueAtTime(frequency, now);
-      
-      // Modulator settings (gentler FM)
-      modulatorOsc.type = 'sine';
-      modulatorOsc.frequency.setValueAtTime(1 + level * 0.2, now);
-      modulatorGain.gain.setValueAtTime(30 + level, now);
-      
-      // Sub oscillator (one octave down, very quiet)
-      subOsc.type = 'sine';
-      subOsc.frequency.setValueAtTime(frequency * 0.5, now);
-      subGain.gain.setValueAtTime(0.1, now);
-
-      // Envelope
-      const attackTime = 0.1;
-      const decayTime = 0.2;
-      const sustainLevel = 0.3;
-      const releaseTime = 0.3;
-
-      mainGain.gain.setValueAtTime(0, now);
-      mainGain.gain.linearRampToValueAtTime(0.3, now + attackTime);
-      mainGain.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + decayTime);
-      mainGain.gain.linearRampToValueAtTime(0, now + attackTime + decayTime + releaseTime);
-
-      // Frequency modulation
-      mainOsc.frequency.exponentialRampToValueAtTime(frequency * 1.2, now + 0.2);
-      mainOsc.frequency.exponentialRampToValueAtTime(frequency * 0.9, now + 0.4);
+      // Simpler envelope for iOS
+      if (this.isIOS) {
+        mainOsc.frequency.setValueAtTime(frequency, now);
+        mainGain.gain.setValueAtTime(0, now);
+        mainGain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+        mainGain.gain.linearRampToValueAtTime(0, now + 0.3);
+      } else {
+        // More complex sound for non-iOS
+        mainOsc.frequency.setValueAtTime(frequency, now);
+        mainOsc.frequency.exponentialRampToValueAtTime(frequency * 1.2, now + 0.2);
+        mainOsc.frequency.exponentialRampToValueAtTime(frequency * 0.9, now + 0.4);
+        
+        mainGain.gain.setValueAtTime(0, now);
+        mainGain.gain.linearRampToValueAtTime(0.3, now + 0.1);
+        mainGain.gain.linearRampToValueAtTime(0.2, now + 0.2);
+        mainGain.gain.linearRampToValueAtTime(0, now + 0.4);
+      }
 
       // Start and stop
       mainOsc.start(now);
-      modulatorOsc.start(now);
-      subOsc.start(now);
-
-      const stopTime = now + attackTime + decayTime + releaseTime;
-      mainOsc.stop(stopTime);
-      modulatorOsc.stop(stopTime);
-      subOsc.stop(stopTime);
-
-      // Force audio session to stay active on iOS
-      if (this.audioElement) {
-        this.audioElement.muted = false;
-        await this.audioElement.play();
-      }
+      mainOsc.stop(now + (this.isIOS ? 0.3 : 0.4));
     } catch (error) {
       console.error('Error playing sound:', error);
     }
   }
 
   async playMilestone(level: number) {
+    if (!this.isInitialized) return;
+    
     this.updateScale(level);
-    // Play ascending arpeggio
-    this.currentScale.forEach((note, i) => {
+    const delay = this.isIOS ? 150 : 200; // Faster sequence on iOS
+    
+    for (let i = 0; i < this.currentScale.length; i++) {
       setTimeout(() => {
         this.playWhaleCall(level);
-      }, i * 200); // Faster sequence
-    });
-  }
-
-  cleanup() {
-    if (this.audioElement) {
-      this.audioElement.pause();
-      this.audioElement.src = '';
-      this.audioElement = null;
-    }
-    if (this.context) {
-      this.context.close();
-      this.context = null;
+      }, i * delay);
     }
   }
 }
