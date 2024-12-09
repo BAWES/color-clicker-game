@@ -52,6 +52,7 @@ interface FloatingNumber {
   isCritical: boolean;
   isCombo: boolean;
   isMega: boolean;
+  completed?: boolean;
 }
 
 const UPGRADES = {
@@ -607,13 +608,9 @@ export default function Home() {
     initAudio();
   }, [generateNewColor, initAudio, playRewardSound, playMilestoneSound]);
 
-  // Update the cleanup effect
-  useEffect(() => {
-    const cleanup = setInterval(() => {
-      setFloatingNumbers(prev => prev.filter(n => Date.now() - n.timestamp < 500));
-    }, 500);
-    
-    return () => clearInterval(cleanup);
+  // Remove the cleanup interval and handle cleanup in the animation completion
+  const handleAnimationComplete = useCallback((id: number) => {
+    setFloatingNumbers(prev => prev.filter(n => n.id !== id));
   }, []);
 
   // Load saved game on mount
@@ -646,7 +643,7 @@ export default function Home() {
         calculateUpgradePrice={calculateUpgradePrice}
       />
 
-      <AnimatePresence>
+      <AnimatePresence mode="sync">
         {floatingNumbers.map(number => (
           <motion.div
             key={number.id}
@@ -656,33 +653,23 @@ export default function Home() {
               left: number.x,
               top: number.y,
               transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
+              willChange: 'transform, opacity'
             }}
             initial={{ 
               opacity: 0,
-              scale: 0.5,
-              y: 0,
-              rotate: number.isCritical ? -10 : 0
+              y: 0
             }}
             animate={{ 
-              opacity: 1,
-              scale: 1,
-              y: -100,
-              rotate: 0
-            }}
-            exit={{ 
-              opacity: 0,
-              y: -150,
-              scale: 0.8
-            }}
-            transition={{ 
-              duration: 0.6,
-              ease: [0.23, 1, 0.32, 1],
-              scale: {
-                duration: 0.4,
-                ease: [0.175, 0.885, 0.32, 1.275]
+              opacity: [0, 1, 1, 0],
+              y: [-20, -60, -100, -120],
+              transition: {
+                duration: 0.6,
+                times: [0, 0.1, 0.8, 1],
+                ease: "linear"
               }
             }}
+            onAnimationComplete={() => handleAnimationComplete(number.id)}
           >
             {Math.floor(number.value).toLocaleString()}
           </motion.div>

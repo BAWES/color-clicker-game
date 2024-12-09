@@ -224,6 +224,7 @@ function Stars() {
 function Blob({ color, isClicking, level, onClick }: BlobProps) {
   const mesh = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
+  const materialRef = useRef<THREE.MeshDistortMaterial>(null);
   
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     whaleSound.playWhaleCall(level);
@@ -245,6 +246,13 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
     
     mesh.current.scale.setScalar(baseScale + breathe);
     mesh.current.rotation.z = Math.sin(time * 0.2) * 0.15;
+
+    // Ensure material properties are updated
+    if (materialRef.current) {
+      materialRef.current.emissiveIntensity = isClicking ? 2 : hovered ? 1 : 0.5;
+      materialRef.current.distort = hovered ? 0.6 : 0.4;
+      materialRef.current.needsUpdate = true;
+    }
   });
 
   return (
@@ -262,6 +270,7 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
       }}
     >
       <MeshDistortMaterial
+        ref={materialRef}
         color={color}
         distort={hovered ? 0.6 : 0.4}
         speed={isClicking ? 5 : 2}
