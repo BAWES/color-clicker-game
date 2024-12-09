@@ -5,9 +5,21 @@ class WhaleSound {
   private isInitialized = false;
   private isIOS = false;
 
+  private noteToFreq: { [key: string]: number } = {
+    'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
+    'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'F4': 349.23, 'G4': 392.00, 'A4': 440.00, 'B4': 493.88
+  };
+
+  private scales = [
+    ['C3', 'E3', 'G3'],
+    ['C3', 'E3', 'G3', 'B3'],
+    ['C3', 'D3', 'E3', 'G3', 'A3'],
+    ['C3', 'E3', 'G3', 'C4'],
+    ['C3', 'E3', 'G3', 'B3', 'D4']
+  ];
+
   constructor() {
     if (typeof window !== 'undefined') {
-      // Check for iOS
       this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     }
@@ -17,25 +29,34 @@ class WhaleSound {
     if (this.isInitialized) return;
 
     try {
-      // Use lower sample rate for iOS
-      const contextOptions = this.isIOS ? { sampleRate: 44100 } : undefined;
-      
-      this.context = new (window.AudioContext || (window as any).webkitAudioContext)(contextOptions);
-      
-      // For iOS, we need to resume the context immediately
-      if (this.isIOS && this.context.state === 'suspended') {
+      // Create a short beep to unlock audio
+      const unlockContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = unlockContext.createOscillator();
+      const gain = unlockContext.createGain();
+      gain.gain.value = 0.1;
+      oscillator.connect(gain);
+      gain.connect(unlockContext.destination);
+      oscillator.start(0);
+      oscillator.stop(0.1);
+
+      // Create main audio context
+      this.context = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: this.isIOS ? 44100 : 48000,
+        latencyHint: 'interactive'
+      });
+
+      if (this.context.state === 'suspended') {
         await this.context.resume();
       }
 
       this.gainNode = this.context.createGain();
       const compressor = this.context.createDynamicsCompressor();
       
-      // Gentler settings for iOS
       if (this.isIOS) {
         compressor.threshold.value = -18;
         compressor.knee.value = 35;
         compressor.ratio.value = 8;
-        this.gainNode.gain.value = 0.15; // Lower volume for iOS
+        this.gainNode.gain.value = 0.15;
       } else {
         compressor.threshold.value = -24;
         compressor.knee.value = 30;
@@ -54,7 +75,10 @@ class WhaleSound {
       // Add resume handler for iOS
       if (this.isIOS) {
         document.addEventListener('visibilitychange', this.handleVisibilityChange);
+        document.addEventListener('touchstart', this.handleTouch, { once: true });
       }
+
+      console.log('Audio initialized successfully');
     } catch (error) {
       console.error('Failed to initialize audio:', error);
       this.isInitialized = false;
@@ -67,26 +91,11 @@ class WhaleSound {
     }
   };
 
-  // Method to check if audio is ready
-  isAudioReady(): boolean {
-    return this.isInitialized && this.context?.state === 'running';
-  }
-
-  // Method to handle user interaction
-  async handleUserInteraction() {
-    if (!this.isInitialized) {
-      await this.initializeAudio();
-    } else if (this.context?.state === 'suspended') {
+  private handleTouch = async () => {
+    if (this.context?.state === 'suspended') {
       await this.context.resume();
     }
-  }
-
-  private async ensureContext() {
-    if (!this.isInitialized) {
-      await this.initializeAudio();
-    }
-    return this.isAudioReady();
-  }
+  };
 
   updateScale(level: number) {
     const scaleIndex = Math.min(Math.floor((level - 1) / 5), this.scales.length - 1);
@@ -94,99 +103,82 @@ class WhaleSound {
   }
 
   async playWhaleCall(level: number) {
-    if (!await this.ensureContext() || !this.context || !this.gainNode) return;
+    if (!this.context || !this.gainNode || this.context.state !== 'running') {
+      console.log('Audio not ready:', {
+        contextExists: !!this.context,
+        gainNodeExists: !!this.gainNode,
+        contextState: this.context?.state
+      });
+      return;
+    }
 
-    this.updateScale(level);
-    const note = this.currentScale[Math.floor(Math.random() * this.currentScale.length)];
-    const frequency = this.noteToFreq[note];
+    try {
+      this.updateScale(level);
+      const note = this.currentScale[Math.floor(Math.random() * this.currentScale.length)];
+      const frequency = this.noteToFreq[note];
 
-    // Create oscillators
-    const mainOsc = this.context.createOscillator();
-    const modulatorOsc = this.context.createOscillator();
-    const subOsc = this.context.createOscillator(); // Subtle sub-oscillator
-    
-    // Create gain nodes
-    const mainGain = this.context.createGain();
-    const modulatorGain = this.context.createGain();
-    const subGain = this.context.createGain();
-    
-    // Create filter
-    const filter = this.context.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 2000;
-    filter.Q.value = 1;
+      const mainOsc = this.context.createOscillator();
+      const modulatorOsc = this.context.createOscillator();
+      const mainGain = this.context.createGain();
+      const modulatorGain = this.context.createGain();
 
-    // Connect everything
-    mainOsc.connect(mainGain);
-    modulatorOsc.connect(modulatorGain);
-    subOsc.connect(subGain);
-    modulatorGain.connect(mainOsc.frequency);
-    mainGain.connect(filter);
-    subGain.connect(filter);
-    filter.connect(this.gainNode);
+      mainOsc.type = 'sine';
+      modulatorOsc.type = 'sine';
+      
+      mainOsc.frequency.setValueAtTime(frequency, this.context.currentTime);
+      modulatorOsc.frequency.setValueAtTime(5 + level * 0.5, this.context.currentTime);
+      
+      mainGain.gain.setValueAtTime(0, this.context.currentTime);
+      mainGain.gain.linearRampToValueAtTime(0.3, this.context.currentTime + 0.01);
+      mainGain.gain.linearRampToValueAtTime(0, this.context.currentTime + 0.3);
+      
+      modulatorGain.gain.setValueAtTime(frequency * 0.1, this.context.currentTime);
 
-    const now = this.context.currentTime;
-    
-    // Main oscillator settings
-    mainOsc.type = 'sine';
-    mainOsc.frequency.setValueAtTime(frequency, now);
-    
-    // Modulator settings (gentler FM)
-    modulatorOsc.type = 'sine';
-    modulatorOsc.frequency.setValueAtTime(1 + level * 0.2, now);
-    modulatorGain.gain.setValueAtTime(30 + level, now);
-    
-    // Sub oscillator (one octave down, very quiet)
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(frequency * 0.5, now);
-    subGain.gain.setValueAtTime(0.1, now);
+      modulatorOsc.connect(modulatorGain);
+      modulatorGain.connect(mainOsc.frequency);
+      mainOsc.connect(mainGain);
+      mainGain.connect(this.gainNode);
 
-    // Envelope
-    const attackTime = 0.1;
-    const decayTime = 0.2;
-    const sustainLevel = 0.3;
-    const releaseTime = 0.3;
+      mainOsc.start(this.context.currentTime);
+      modulatorOsc.start(this.context.currentTime);
 
-    mainGain.gain.setValueAtTime(0, now);
-    mainGain.gain.linearRampToValueAtTime(0.3, now + attackTime);
-    mainGain.gain.linearRampToValueAtTime(sustainLevel, now + attackTime + decayTime);
-    mainGain.gain.linearRampToValueAtTime(0, now + attackTime + decayTime + releaseTime);
+      mainOsc.stop(this.context.currentTime + 0.3);
+      modulatorOsc.stop(this.context.currentTime + 0.3);
 
-    // Frequency modulation
-    mainOsc.frequency.exponentialRampToValueAtTime(frequency * 1.2, now + 0.2);
-    mainOsc.frequency.exponentialRampToValueAtTime(frequency * 0.9, now + 0.4);
-
-    // Start and stop
-    mainOsc.start(now);
-    modulatorOsc.start(now);
-    subOsc.start(now);
-
-    const stopTime = now + attackTime + decayTime + releaseTime;
-    mainOsc.stop(stopTime);
-    modulatorOsc.stop(stopTime);
-    subOsc.stop(stopTime);
+      console.log('Sound played successfully');
+    } catch (error) {
+      console.error('Error playing sound:', error);
+    }
   }
 
   async playMilestone(level: number) {
-    if (!await this.ensureContext()) return;
+    if (!this.context || !this.gainNode) return;
     
     this.updateScale(level);
-    // Play ascending arpeggio
-    this.currentScale.forEach((note, i) => {
+    for (let i = 0; i < this.currentScale.length; i++) {
       setTimeout(() => {
         this.playWhaleCall(level);
       }, i * 200);
-    });
+    }
   }
 
   cleanup() {
     if (this.isIOS) {
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+      document.removeEventListener('touchstart', this.handleTouch);
     }
   }
 }
 
 export const whaleSound = new WhaleSound();
 
-// Add this line at the end of the file
-export const initializeAudio = () => whaleSound.handleUserInteraction(); 
+// Export a function to initialize audio
+export const initializeAudio = async () => {
+  try {
+    await whaleSound.initializeAudio();
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize audio:', error);
+    return false;
+  }
+}; 

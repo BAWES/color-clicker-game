@@ -166,6 +166,7 @@ export default function Home() {
     },
   });
   const [floatingNumbers, setFloatingNumbers] = useState<Array<FloatingNumber>>([]);
+  const [audioInitialized, setAudioInitialized] = useState(false);
 
   const lastMousePos = useRef<Position | null>(null);
   const isMoving = useRef(false);
@@ -632,64 +633,44 @@ export default function Home() {
 
   // Initialize audio on first interaction
   useEffect(() => {
-    let audioInitialized = false;
-    let silentContext: AudioContext | null = null;
-
-    const initAudioContext = async () => {
-      if (audioInitialized) return;
+    const initAudio = async (event: Event) => {
+      event.preventDefault();
       
-      try {
-        // Create and start silent audio context
-        silentContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = silentContext.createOscillator();
-        const gainNode = silentContext.createGain();
-        gainNode.gain.value = 0;
-        oscillator.connect(gainNode);
-        gainNode.connect(silentContext.destination);
-        oscillator.start();
-        oscillator.stop(0.001);
-
-        // Initialize our game audio
-        await initializeAudio();
-        
-        audioInitialized = true;
-      } catch (error) {
-        console.error('Audio initialization failed:', error);
+      if (!audioInitialized) {
+        const success = await initializeAudio();
+        if (success) {
+          setAudioInitialized(true);
+          console.log('Audio initialized successfully');
+        }
       }
     };
 
-    const handleInteraction = async () => {
-      await initAudioContext();
-    };
-
-    // Handle iOS audio unlock
-    const resumeAudioContext = async () => {
-      if (silentContext?.state === 'suspended') {
-        await silentContext.resume();
-      }
-      await initAudioContext();
-    };
-
-    // Add multiple event listeners for better iOS compatibility
-    const events = ['touchstart', 'touchend', 'click', 'keydown'];
+    // Add event listeners for both touch and click
+    const events = ['touchstart', 'click'];
     events.forEach(event => {
-      document.addEventListener(event, handleInteraction, { once: true });
+      document.addEventListener(event, initAudio, { once: true });
     });
 
-    // Handle page visibility changes
-    document.addEventListener('visibilitychange', resumeAudioContext);
-
-    // Clean up
     return () => {
       events.forEach(event => {
-        document.removeEventListener(event, handleInteraction);
+        document.removeEventListener(event, initAudio);
       });
-      document.removeEventListener('visibilitychange', resumeAudioContext);
-      if (silentContext) {
-        silentContext.close();
+    };
+  }, [audioInitialized]);
+
+  // Handle audio resumption on visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && audioInitialized) {
+        whaleSound.playWhaleCall(gameState.level);
       }
     };
-  }, []);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [audioInitialized, gameState.level]);
 
   return (
     <main className="fixed inset-0 w-full h-full overflow-hidden">
