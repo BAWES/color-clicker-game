@@ -1,7 +1,9 @@
 class WhaleSound {
   private context: AudioContext | null = null;
   private gainNode: GainNode | null = null;
-  private currentScale: string[] = ['C3', 'E3', 'G3', 'C4']; // Starting scale
+  private currentScale: string[] = ['C3', 'E3', 'G3', 'C4'];
+  private isInitialized = false;
+  private audioEnabled = false;
 
   private noteToFreq: { [key: string]: number } = {
     'C3': 130.81, 'D3': 146.83, 'E3': 164.81, 'F3': 174.61, 'G3': 196.00, 'A3': 220.00, 'B3': 246.94,
@@ -9,30 +11,76 @@ class WhaleSound {
   };
 
   private scales = [
-    ['C3', 'E3', 'G3'],           // Level 1-5: Simple triad
-    ['C3', 'E3', 'G3', 'B3'],     // Level 6-10: Add seventh
-    ['C3', 'D3', 'E3', 'G3', 'A3'], // Level 11-15: Pentatonic
-    ['C3', 'E3', 'G3', 'C4'],     // Level 16-20: Octave spread
-    ['C3', 'E3', 'G3', 'B3', 'D4']  // Level 21+: Extended harmony
+    ['C3', 'E3', 'G3'],
+    ['C3', 'E3', 'G3', 'B3'],
+    ['C3', 'D3', 'E3', 'G3', 'A3'],
+    ['C3', 'E3', 'G3', 'C4'],
+    ['C3', 'E3', 'G3', 'B3', 'D4']
   ];
 
-  private initContext() {
-    if (!this.context) {
-      this.context = new AudioContext();
-      this.gainNode = this.context.createGain();
-      const compressor = this.context.createDynamicsCompressor();
-      
-      // Gentler compression settings
-      compressor.threshold.value = -24;
-      compressor.knee.value = 30;
-      compressor.ratio.value = 12;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-      
-      this.gainNode.connect(compressor);
-      compressor.connect(this.context.destination);
-      this.gainNode.gain.value = 0.2; // Reduced overall volume
+  // Initialize audio context with user interaction
+  async initializeAudio() {
+    try {
+      if (!this.isInitialized) {
+        // Create context with iOS-compatible options
+        this.context = new (window.AudioContext || (window as any).webkitAudioContext)({
+          latencyHint: 'interactive',
+          sampleRate: 44100,
+        });
+        
+        // Resume context (needed for iOS)
+        if (this.context.state === 'suspended') {
+          await this.context.resume();
+        }
+
+        this.gainNode = this.context.createGain();
+        const compressor = this.context.createDynamicsCompressor();
+        
+        compressor.threshold.value = -24;
+        compressor.knee.value = 30;
+        compressor.ratio.value = 12;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.25;
+        
+        this.gainNode.connect(compressor);
+        compressor.connect(this.context.destination);
+        this.gainNode.gain.value = 0.2;
+        
+        this.isInitialized = true;
+        this.audioEnabled = true;
+        
+        // Add iOS unloading handler
+        window.addEventListener('visibilitychange', () => {
+          if (document.hidden && this.context) {
+            this.context.suspend();
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Failed to initialize audio:', error);
+      this.audioEnabled = false;
     }
+  }
+
+  // Method to check if audio is ready
+  isAudioReady(): boolean {
+    return this.audioEnabled && this.context?.state === 'running';
+  }
+
+  // Method to handle user interaction
+  async handleUserInteraction() {
+    if (!this.isInitialized) {
+      await this.initializeAudio();
+    } else if (this.context?.state === 'suspended') {
+      await this.context.resume();
+    }
+  }
+
+  private async ensureContext() {
+    if (!this.isInitialized) {
+      await this.initializeAudio();
+    }
+    return this.isAudioReady();
   }
 
   updateScale(level: number) {
@@ -40,9 +88,8 @@ class WhaleSound {
     this.currentScale = this.scales[scaleIndex];
   }
 
-  playWhaleCall(level: number) {
-    this.initContext();
-    if (!this.context || !this.gainNode) return;
+  async playWhaleCall(level: number) {
+    if (!await this.ensureContext() || !this.context || !this.gainNode) return;
 
     this.updateScale(level);
     const note = this.currentScale[Math.floor(Math.random() * this.currentScale.length)];
@@ -115,15 +162,20 @@ class WhaleSound {
     subOsc.stop(stopTime);
   }
 
-  playMilestone(level: number) {
+  async playMilestone(level: number) {
+    if (!await this.ensureContext()) return;
+    
     this.updateScale(level);
     // Play ascending arpeggio
     this.currentScale.forEach((note, i) => {
       setTimeout(() => {
         this.playWhaleCall(level);
-      }, i * 200); // Faster sequence
+      }, i * 200);
     });
   }
 }
 
-export const whaleSound = new WhaleSound(); 
+export const whaleSound = new WhaleSound();
+
+// Add this line at the end of the file
+export const initializeAudio = () => whaleSound.handleUserInteraction(); 

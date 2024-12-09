@@ -6,7 +6,7 @@ import GameUI from './components/GameUI';
 import './styles/game.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThreeEvent } from '@react-three/fiber';
-import { whaleSound } from '@/utils/sounds';
+import { whaleSound, initializeAudio } from '@/utils/sounds';
 import { storage } from '@/utils/storage';
 
 interface HSL {
@@ -629,6 +629,38 @@ export default function Home() {
   useEffect(() => {
     storage.saveGame(gameState);
   }, [gameState]);
+
+  // Initialize audio on first interaction
+  useEffect(() => {
+    const handleFirstInteraction = async () => {
+      try {
+        await initializeAudio();
+        // Try playing a silent sound to unlock audio
+        const silentContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const buffer = silentContext.createBuffer(1, 1, 22050);
+        const source = silentContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(silentContext.destination);
+        source.start(0);
+        silentContext.close();
+        
+        // Remove listeners after first interaction
+        document.removeEventListener('click', handleFirstInteraction);
+        document.removeEventListener('touchstart', handleFirstInteraction);
+      } catch (error) {
+        console.error('Audio initialization failed:', error);
+      }
+    };
+
+    // Add both touch and click listeners for iOS Chrome
+    document.addEventListener('click', handleFirstInteraction, { once: true });
+    document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
 
   return (
     <main className="fixed inset-0 w-full h-full overflow-hidden">
