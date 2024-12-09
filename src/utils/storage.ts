@@ -1,33 +1,26 @@
-import { GameState } from '../types';
+import { GameState } from '@/types';
 import CryptoJS from 'crypto-js';
 
+// Simple key for demo purposes - in production you might want something more secure
 const STORAGE_KEY = 'blob_game_save';
-const SECRET_KEY = 'your-secret-key-here';
+const CRYPTO_KEY = 'blob-game-secret-123';
 
 export const storage = {
   saveGame(state: GameState) {
     try {
-      // Convert Set to Array for serialization
-      const serializedState = {
-        ...state,
-        achievements: {
-          ...state.achievements,
-          colorsUnlocked: Array.from(state.achievements.colorsUnlocked)
-        }
-      };
-
-      const stateString = JSON.stringify(serializedState);
+      // Create a checksum and encrypt the data
+      const stateString = JSON.stringify(state);
       const checksum = CryptoJS.SHA256(stateString).toString();
       
       const saveData = {
-        state: serializedState,
+        state,
         checksum,
         timestamp: Date.now()
       };
       
       const encrypted = CryptoJS.AES.encrypt(
         JSON.stringify(saveData),
-        SECRET_KEY
+        CRYPTO_KEY
       ).toString();
       
       localStorage.setItem(STORAGE_KEY, encrypted);
@@ -41,9 +34,11 @@ export const storage = {
       const encrypted = localStorage.getItem(STORAGE_KEY);
       if (!encrypted) return null;
       
-      const decrypted = CryptoJS.AES.decrypt(encrypted, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+      // Decrypt and verify the data
+      const decrypted = CryptoJS.AES.decrypt(encrypted, CRYPTO_KEY).toString(CryptoJS.enc.Utf8);
       const saveData = JSON.parse(decrypted);
       
+      // Verify checksum to prevent tampering
       const stateString = JSON.stringify(saveData.state);
       const checksum = CryptoJS.SHA256(stateString).toString();
       
@@ -51,15 +46,8 @@ export const storage = {
         console.warn('Save data appears to be tampered with');
         return null;
       }
-
-      // Convert Array back to Set after deserialization
-      return {
-        ...saveData.state,
-        achievements: {
-          ...saveData.state.achievements,
-          colorsUnlocked: new Set(saveData.state.achievements.colorsUnlocked)
-        }
-      };
+      
+      return saveData.state;
     } catch (error) {
       console.error('Failed to load game:', error);
       return null;
