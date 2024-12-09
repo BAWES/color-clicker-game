@@ -225,6 +225,7 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
   const mesh = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const materialRef = useRef<THREE.MeshDistortMaterial>(null);
+  const distortionRef = useRef(0.4); // Track current distortion value
   
   const handleClick = (event: ThreeEvent<MouseEvent>) => {
     whaleSound.playWhaleCall(level);
@@ -232,7 +233,7 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
   };
   
   useFrame((state) => {
-    if (!mesh.current) return;
+    if (!mesh.current || !materialRef.current) return;
     const time = state.clock.elapsedTime;
     
     mesh.current.position.y = Math.sin(time * 0.5) * 0.2;
@@ -247,12 +248,13 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
     mesh.current.scale.setScalar(baseScale + breathe);
     mesh.current.rotation.z = Math.sin(time * 0.2) * 0.15;
 
-    // Ensure material properties are updated
-    if (materialRef.current) {
-      materialRef.current.emissiveIntensity = isClicking ? 2 : hovered ? 1 : 0.5;
-      materialRef.current.distort = hovered ? 0.6 : 0.4;
-      materialRef.current.needsUpdate = true;
-    }
+    // Smoothly interpolate distortion
+    const targetDistortion = hovered ? 0.6 : 0.4;
+    distortionRef.current += (targetDistortion - distortionRef.current) * 0.1;
+    
+    materialRef.current.distort = distortionRef.current;
+    materialRef.current.emissiveIntensity = isClicking ? 2 : hovered ? 1 : 0.5;
+    materialRef.current.needsUpdate = true;
   });
 
   return (
@@ -272,7 +274,7 @@ function Blob({ color, isClicking, level, onClick }: BlobProps) {
       <MeshDistortMaterial
         ref={materialRef}
         color={color}
-        distort={hovered ? 0.6 : 0.4}
+        distort={0.4} // Initial distortion value
         speed={isClicking ? 5 : 2}
         roughness={0.1}
         metalness={0.3}
