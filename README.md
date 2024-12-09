@@ -6,6 +6,10 @@ Special thanks to the genius behind it. Mr. 010101010010101010100 BOZZZ
 
 A dynamic, interactive web-based game where players control a colorful blob that responds to mouse/touch input. Built with Next.js and modern web technologies.
 
+## Try It Out
+
+🎮 **[Play the Game](https://color-clicker-game.vercel.app/)**
+
 ## Features
 
 - Responsive blob that follows cursor movements
