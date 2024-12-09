@@ -1,13 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GameState, UPGRADES } from '../types';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-
-interface GameUIProps {
-  gameState: GameState;
-  buyUpgrade: (type: keyof typeof UPGRADES) => void;
-  calculateUpgradePrice: (type: keyof typeof UPGRADES, level: number) => number;
-}
 
 const POWER_SYMBOLS = {
   clickPower: '⚡',
@@ -17,6 +11,8 @@ const POWER_SYMBOLS = {
   criticalClick: '💥',
   colorMastery: '🎨',
 };
+
+const CURRENCY_ICON = '💎';
 
 interface PowerAnnouncement {
   type: keyof typeof UPGRADES;
@@ -31,16 +27,18 @@ function PowerAnnouncementDisplay({ announcement, onComplete }: {
   const symbol = POWER_SYMBOLS[announcement.type];
   const name = announcement.type.replace(/([A-Z])/g, ' $1').trim();
 
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 3000);
+    return () => clearTimeout(timer);
+  }, [announcement.type, announcement.level, onComplete]);
+
   return (
     <motion.div 
       className="power-announcement"
-      initial={{ y: 100, opacity: 0 }}
+      initial={{ y: 50, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 100, opacity: 0 }}
+      exit={{ y: -50, opacity: 0 }}
       transition={{ type: "spring", damping: 20, stiffness: 300 }}
-      onAnimationComplete={() => {
-        setTimeout(onComplete, 2000);
-      }}
       style={{
         '--upgrade-color': info.color
       } as React.CSSProperties}
@@ -65,34 +63,36 @@ function PowerAnnouncementDisplay({ announcement, onComplete }: {
   );
 }
 
-function GameHeader({ gameState, hasAvailableUpgrades, onOpenUpgrades }: {
-  gameState: GameState;
-  hasAvailableUpgrades: boolean;
-  onOpenUpgrades: () => void;
-}) {
+function GameHeader({ gameState }: { gameState: GameState }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="game-header">
       <div className="header-stats">
         <div className="stat-group">
           <div className="stat points">
-            <span className="value">{Math.floor(gameState.points).toLocaleString()}</span>
+            <span className="value">{mounted ? Math.floor(gameState.points).toLocaleString() : '0'}</span>
             <span className="label">Points</span>
           </div>
           
           <div className="stat level">
-            <span className="value">Lvl {gameState.level}</span>
+            <span className="value">Lvl {mounted ? gameState.level : '1'}</span>
             <div className="exp-bar">
               <div 
                 className="exp-fill" 
                 style={{ 
-                  width: `${(gameState.experience / gameState.experienceToNext) * 100}%` 
+                  width: mounted ? `${(gameState.experience / gameState.experienceToNext) * 100}%` : '0%'
                 }} 
               />
             </div>
           </div>
         </div>
 
-        {gameState.combo > 1 && (
+        {mounted && gameState.combo > 1 && (
           <motion.div 
             className="combo-counter"
             initial={{ scale: 0 }}
@@ -103,21 +103,14 @@ function GameHeader({ gameState, hasAvailableUpgrades, onOpenUpgrades }: {
           </motion.div>
         )}
       </div>
-      
-      {hasAvailableUpgrades && (
-        <motion.button
-          className="upgrade-notification"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onOpenUpgrades}
-        >
-          <span className="notification-dot" />
-          Powers
-        </motion.button>
-      )}
     </div>
   );
+}
+
+interface GameUIProps {
+  gameState: GameState;
+  buyUpgrade: (type: keyof typeof UPGRADES) => void;
+  calculateUpgradePrice: (type: keyof typeof UPGRADES, level: number) => number;
 }
 
 function PowersGrid({ gameState, buyUpgrade, calculateUpgradePrice, onPowerSelected }: GameUIProps & {
@@ -148,8 +141,13 @@ function PowersGrid({ gameState, buyUpgrade, calculateUpgradePrice, onPowerSelec
             <span className="power-symbol">
               {POWER_SYMBOLS[type as keyof typeof POWER_SYMBOLS]}
             </span>
-            <span className="power-level">Lv{currentLevel}</span>
-            <span className="power-cost">{cost.toLocaleString()}</span>
+            <div className="power-cost">
+              <span className="cost-icon">{CURRENCY_ICON}</span>
+              {cost.toLocaleString()}
+            </div>
+            <div className="power-level">
+              Level {currentLevel}
+            </div>
           </motion.button>
         );
       })}
@@ -158,30 +156,30 @@ function PowersGrid({ gameState, buyUpgrade, calculateUpgradePrice, onPowerSelec
 }
 
 export default function GameUI({ gameState, buyUpgrade, calculateUpgradePrice }: GameUIProps) {
-  const [isUpgradesPanelOpen, setIsUpgradesPanelOpen] = useState(false);
   const [announcement, setAnnouncement] = useState<PowerAnnouncement | null>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
-  
-  const hasAvailableUpgrades = Object.entries(UPGRADES).some(([type]) => {
-    const currentLevel = gameState.upgrades[type as keyof typeof UPGRADES];
-    const cost = calculateUpgradePrice(type as keyof typeof UPGRADES, currentLevel);
-    return gameState.points >= cost;
-  });
 
   const handlePowerSelected = (type: keyof typeof UPGRADES, level: number) => {
     setAnnouncement({ type, level });
-    if (isMobile) {
-      setIsUpgradesPanelOpen(false);
-    }
   };
 
   return (
     <>
-      <GameHeader 
-        gameState={gameState}
-        hasAvailableUpgrades={hasAvailableUpgrades}
-        onOpenUpgrades={() => setIsUpgradesPanelOpen(true)}
-      />
+      <GameHeader gameState={gameState} />
+
+      <motion.div 
+        className="game-ui-container"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <PowersGrid 
+          gameState={gameState}
+          buyUpgrade={buyUpgrade}
+          calculateUpgradePrice={calculateUpgradePrice}
+          onPowerSelected={handlePowerSelected}
+        />
+      </motion.div>
 
       <AnimatePresence>
         {announcement && (
@@ -189,50 +187,6 @@ export default function GameUI({ gameState, buyUpgrade, calculateUpgradePrice }:
             announcement={announcement}
             onComplete={() => setAnnouncement(null)}
           />
-        )}
-
-        {isMobile ? (
-          isUpgradesPanelOpen && (
-            <motion.div
-              className="mobile-upgrades-panel"
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            >
-              <div className="panel-header">
-                <h2>Powers</h2>
-                <button 
-                  className="close-button"
-                  onClick={() => setIsUpgradesPanelOpen(false)}
-                >
-                  ×
-                </button>
-              </div>
-              <div className="panel-content">
-                <PowersGrid 
-                  gameState={gameState}
-                  buyUpgrade={buyUpgrade}
-                  calculateUpgradePrice={calculateUpgradePrice}
-                  onPowerSelected={handlePowerSelected}
-                />
-              </div>
-            </motion.div>
-          )
-        ) : (
-          <motion.div 
-            className="game-ui-container"
-            initial={{ x: -300 }}
-            animate={{ x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <PowersGrid 
-              gameState={gameState}
-              buyUpgrade={buyUpgrade}
-              calculateUpgradePrice={calculateUpgradePrice}
-              onPowerSelected={handlePowerSelected}
-            />
-          </motion.div>
         )}
       </AnimatePresence>
     </>
