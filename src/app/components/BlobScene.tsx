@@ -229,7 +229,7 @@ function Stars() {
 function Blob({ color, isClicking, level, onClick }: BlobProps) {
   const mesh = useRef<THREE.Mesh>(null);
   const [hovered, setHovered] = useState(false);
-  const materialRef = useRef<THREE.MeshDistortMaterial>(null);
+  const materialRef = useRef<any>(null);
   const distortionRef = useRef(0.4);
   const [isMounted, setIsMounted] = useState(false);
   

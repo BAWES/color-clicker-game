@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ThreeEvent } from '@react-three/fiber';
 import { whaleSound, initializeAudio } from '@/utils/sounds';
 import { storage } from '@/utils/storage';
+import { generateNewColor } from '@/utils/colors';
+import { UPGRADES } from '@/utils/constants';
 
 interface HSL {
   h: number;
@@ -132,6 +134,7 @@ const SOUND_EFFECTS = {
   }
 };
 
+// Milestone values for achievements
 const MILESTONES = {
   points: [100, 1000, 10000, 100000],
   combo: [10, 25, 50, 100],
@@ -518,12 +521,30 @@ export default function Home() {
     lastMousePos.current = currentPos;
   }, []);
 
-  const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
+  const handleClick = useCallback(async (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     
-    // Get screen coordinates from the native event and adjust for blob scale
+    // Initialize audio on first click if needed
+    if (!audioInitialized) {
+      console.log('Initializing audio...');
+      const success = await initializeAudio();
+      if (success) {
+        console.log('Audio initialized successfully');
+        setAudioInitialized(true);
+        await whaleSound.startBackgroundMusic();
+      } else {
+        console.error('Failed to initialize audio');
+      }
+    }
+
+    // Update music tempo on each click
+    whaleSound.updateTempo();
+    
+    // Get screen coordinates from the native event
     const screenX = e.nativeEvent.clientX;
     const screenY = e.nativeEvent.clientY;
+
+    // Get screen coordinates from the native event and adjust for blob scale
     const isMobile = window.innerWidth <= 768;
     const scale = isMobile ? (window.innerWidth <= 480 ? 0.5 : 0.7) : 1;
     
@@ -555,10 +576,34 @@ export default function Home() {
         colorsUnlocked: new Set(Array.from(prev.achievements.colorsUnlocked).concat([newColor]))
       };
 
+      // Check click achievements
+      if (newAchievements.totalClicks === 1 ||
+          newAchievements.totalClicks === 100 ||
+          newAchievements.totalClicks === 1000 ||
+          newAchievements.totalClicks === 10000) {
+        whaleSound.playAchievement();
+      }
+
+      // Check color achievements
+      if (newAchievements.colorsUnlocked.size === 10 ||
+          newAchievements.colorsUnlocked.size === 25 ||
+          newAchievements.colorsUnlocked.size === 50 ||
+          newAchievements.colorsUnlocked.size === 100) {
+        whaleSound.playAchievement();
+      }
+
       // Calculate combo
       const newCombo = prev.combo + 1;
       const comboMultiplier = 1 + (newCombo * 0.1 * (1 + prev.upgrades.comboMaster * UPGRADES.comboMaster.effect));
       
+      // Check combo achievements
+      if (newCombo === 10 ||
+          newCombo === 25 ||
+          newCombo === 50 ||
+          newCombo === 100) {
+        whaleSound.playAchievement();
+      }
+
       // Calculate critical hit
       const criticalChance = prev.upgrades.criticalClick * UPGRADES.criticalClick.effect;
       const isCritical = Math.random() < criticalChance;
@@ -624,9 +669,7 @@ export default function Home() {
         },
       };
     });
-    
-    initAudio();
-  }, [generateNewColor, initAudio, playRewardSound, playMilestoneSound]);
+  }, [audioInitialized, setAudioInitialized, generateNewColor, setGlowKey, setIsClicking, setFloatingNumbers, setGameState]);
 
   // Remove the cleanup interval and handle cleanup in the animation completion
   const handleAnimationComplete = useCallback((id: number) => {
